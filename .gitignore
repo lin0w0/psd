@@ -1,0 +1,31 @@
+# vscode设置文件
+.vscode
+
+# 虚拟环境
+.env
+.venv
+env/
+venv/
+
+# config
+config/csr_reference.yaml
+
+# Baseline
+compnet/
+CSR/
+
+# 数据集
+data/
+
+# 预训练权重
+net_params_tongji_600.pth
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 运行产物
+results/
+manifests/
+outputs/

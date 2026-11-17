@@ -1,0 +1,69 @@
+# ============================================================
+# psd - CompNet / Tongji palmprint ROI
+# Relative paths are resolved against the repository root.
+# ============================================================
+
+paths:
+  data_root: "./data/ROI"                     # contains session1/ and session2/
+  session1: "session1"                        # gallery, 6000 images (600 x 10)
+  session2: "session2"                        # probe,   6000 images (600 x 10)
+  weights: "./net_params_tongji_600.pth"      # official pretrained checkpoint
+  manifest_dir: "./manifests"                 # train.txt / test.txt output
+  results_root: "./results"                   # report.json / summary.csv / plots
+
+data:
+  imside: 128                                 # official input size
+  outchannels: 1                              # grayscale
+  num_classes: 600                            # Tongji
+  images_per_class: 10
+  label_rule: "tongji"                        # label = (int(stem) - 1) // 10
+  batch_size: 32
+  num_workers: 0
+  pin_memory: true
+
+model:
+  name: "CompNet"
+  num_classes: 600
+
+evaluation:
+  device: "auto"                              # auto | cuda | cuda:0 | cpu
+  probe_chunk: 256                            # probes per distance chunk
+  protocols:
+    - "classification"                        # primary: identity classification ACC
+    - "verification"                          # auxiliary: session1 vs session2
+    - "aggregated_verification"               # auxiliary: per-class minimum distance
+    - "dataset_eer"                           # auxiliary: all pairs inside session2
+    - "rank1"                                 # auxiliary: nearest-gallery identification
+  save_scores: false                          # export genuine/impostor .npz
+  plots: true                                 # GI / score histogram / ROC / DET
+
+# Adversarial attacks (attack/) for palmprint identity classification
+# Pipeline: ROI -> Resize -> ToTensor -> +perturbation -> NormSingleROI
+#           -> CompNet -> ArcFace logits -> classification loss (ACC objective).
+# epsilons are L-inf budgets on pixel tensors in [0, 1] (CSR setting).
+attack:
+  # ce: PGD/APGD/Patch use cross-entropy, CW uses its logit margin (default).
+  # dlr: PGD/APGD/Patch use untargeted DLR (APGD-DLR); CW uses its margin.
+  # cw: all L-inf attacks use the CW logit margin.
+  # matching: gallery genuine/impostor margin ablation (needs session1 features).
+  loss: "ce"
+  epsilons: [0.0039215686, 0.0078431373, 0.0156862745]  # 1/255, 2/255, 4/255
+  pgd_steps: 10
+  pgd_alpha_scale: 2.5
+  cw_steps: 30
+  cw_kappa: 0.0
+  cw_alpha_scale: 2.5
+  apgd_steps: 30
+  patch_size: 24                              # px, 128x128 input
+  patch_steps: 100
+  patch_lr: 0.05
+  batch_size: 16
+  sample_n: 1000                              # probes per run; null = all 6000
+  preserve_background: false                  # keep exactly-zero ROI background
+  input_range: [0.0, 1.0]                     # valid pixel range; null disables clamp
+
+# Numbers reported by the paper (used only for side-by-side comparison)
+reference:
+  rank1: 100.0
+  eer: 0.018
+  source: "CompNet, IEEE SPL 2021 - Supplementary Table I (Tongji, d=9, m=0.5)"
